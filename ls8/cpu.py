@@ -122,24 +122,23 @@ class CPU:
         """Run the CPU."""
         self.running = True
 
-        while running:
-            ir = self.ram_read(self.pc)
-            operand_a = self.ram_read(self.pc + 1)
-            operand_b = self.ram_read(self.pc + 1)
+        while self.running:
+            ir = self.ram[self.pc]
+            self.ops[ir]()
 
-            if ir == 0b10000010:
-                reg_num = self.ram[self.pc + 1]
-                value = self.ram[self.pc + 2]
+            # if ir == 0b10000010:
+            #     reg_num = self.ram[self.pc + 1]
+            #     value = self.ram[self.pc + 2]
 
-                self.reg[reg_num] = value
+            #     self.reg[reg_num] = value
 
-                self.pc += 3
+            #     self.pc += 3
 
-            elif ir == 0b01000111:
-                reg_num = self.ram[self.pc + 1]
-                print(self.reg[reg_num])
+            # elif ir == 0b01000111:
+            #     reg_num = self.ram[self.pc + 1]
+            #     print(self.reg[reg_num])
 
-                self.pc += 2
+            #     self.pc += 2
 
-            elif ir == 0b00000001:
-                running = False
+            # elif ir == 0b00000001:
+            #     running = False
