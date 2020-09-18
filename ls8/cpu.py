@@ -5,7 +5,18 @@ import sys
 HLT = 0b00000001
 LDI = 0b10000010
 PRN = 0b01000111
+ADD = 0b10100000
 MUL = 0b10100010
+PUSH = 0b01000101
+POP = 0b01000110
+CALL = 0b01010000
+RET = 0b00010001
+SP = 7
+
+CMP = 0b10100111
+JMP = 0b01010100
+JEQ = 0b01010101
+JNE = 0b01010110
 
 class CPU:
     """Main CPU class."""
@@ -22,17 +33,30 @@ class CPU:
         self.ops[HLT] = self.HLT
         self.ops[MUL] = self.MUL
         self.running = False
+        self.ops[POP] = self.POP
+        self.ops[PUSH] = self.PUSH
+        self.ops[CALL] = self.CALL
+        self.ops[RET] = self.RET
+        self.ops[ADD] = self.ADD
+        self.reg[7] = 0xf4
+
+        self.FL = 0b00000000
+        self.ops[CMP] = self.CMP
+        self.ops[JMP] = self.JMP
+        self.ops[JEQ] = self.JEQ
+        self.ops[JNE] = self.JNE
 
     def LDI(self):
         address = self.ram[self.pc + 1]
         value = self.ram[self.pc + 2]
-        self.ram_write(address, value)
+        self.reg[address] = value
         self.pc += 3
 
     def PRN(self):
         address = self.ram[self.pc + 1]
-        self.ram_read(address)
+        output = self.reg[address]
         self.pc += 2
+        print(output)
 
     def MUL(self):
         reg_a = self.ram[self.pc + 1]
@@ -42,6 +66,104 @@ class CPU:
 
     def HLT(self):
         self.running = False
+
+    def PUSH(self):
+        # decrement stack pointer
+        print(self.reg, 'REG BEFORE')
+        self.reg[7] -= 1
+
+        # get register value
+        reg_num = self.ram[self.pc + 1]
+        value = self.reg[reg_num]
+
+        # store it on the stack
+        top_of_stack_addr = self.reg[7]
+        self.ram[top_of_stack_addr] = value
+        print(self.reg, 'REG AFTER')
+
+        self.pc += 2
+    
+    def POP(self):
+        # get value from the top of the stack
+        print(self.reg, 'POP BEFORE')
+        address_to_pop = self.reg[SP]
+        value = self.ram[address_to_pop]
+
+        reg_num = self.ram[self.pc + 1]
+        self.reg[reg_num] = value
+
+        self.reg[SP] += 1
+        print(self.reg, 'POP AFTER')
+        self.pc += 2
+
+    def CALL(self):
+        ret_addr = self.pc + 2
+        self.reg[SP] -= 1
+        self.ram[self.reg[SP]] = ret_addr
+        
+        reg_num = self.ram[self.pc + 1]
+        self.pc = self.reg[reg_num]
+        
+    def RET(self):
+        ret_addr = self.ram[self.reg[SP]]
+        self.reg[SP] += 1
+        self.pc = ret_addr
+    def ADD(self):
+        reg_a = self.ram[self.pc + 1]
+        reg_b = self.ram[self.pc + 2]
+        self.alu('ADD', reg_a, reg_b)
+        self.pc += 3
+
+    def CMP(self):
+        # `FL` bits: `00000LGE`
+        reg_a = self.ram[self.pc + 1]
+        reg_b = self.ram[self.pc + 2]
+
+        # If they are equal, set the Equal `E` flag to 1
+        if reg_a == reg_b:
+            self.FL = 0b00000001
+
+        # If reg_a is less than reg_b, set the Less-than `L` flag to 1
+        elif reg_a < reg_b:
+            self.FL = 0b00000100
+
+        # If reg_a is greater than reg_b, set the Greater-than `G` flag to 1
+        elif reg_a > reg_b:
+            self.FL = 0b00000010
+
+        self.pc += 3
+
+    def JMP(self):
+        # Jump to the address stored in the given register.
+        reg_num = self.ram[self.pc + 1]
+
+        addr = self.reg[reg_num]
+        # set pc to addr
+        self.pc = addr
+
+    def JEQ(self):
+        # If `equal` flag is set (true), jump to the address stored in the given register.
+        if self.FL & 0b001 == 1:
+            # reg_num = self.ram[self.pc + 1]
+
+            # addr = self.reg[reg_num]
+
+            self.pc = self.reg[self.ram[self.pc + 1]]
+        else:
+            self.pc += 2
+
+    def JNE(self):
+        # If `E` flag is clear (false, 0), jump to the address stored in the given register
+        if self.FL & 0b1 == 0:
+            # reg_num = self.ram[self.pc + 1]
+
+            # addr = self.reg[reg_num]
+
+            self.pc = self.reg[self.ram[self.pc + 1]]
+        else:
+            self.pc += 2
+
+
 
     def load(self):
         """Load a program into memory."""
@@ -83,10 +205,12 @@ class CPU:
             sys.exit(3)
 
     def ram_read(self, address):
-        print(self.reg[address])
+        # print(self.reg[address])
+        output = self.ram[address]
+        return output
 
     def ram_write(self, address, value):
-        self.reg[address] = value
+         self.ram[address] = value
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
